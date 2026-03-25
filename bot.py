@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 # logging
 logging.basicConfig(level=logging.INFO)
 
-# TOKEN (BU YERGA O'Z TOKENINGNI QO'Y)
+# TOKEN
 TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
 
 # /start komandasi
@@ -24,7 +24,8 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ydl_opts = {
             'outtmpl': 'video.%(ext)s',
             'format': 'mp4',
-            'quiet': True
+            'quiet': True,
+            'cookiefile': 'cookies.txt'   # 👈 MUHIM QISM
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -37,15 +38,12 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await msg.delete()
 
-        # faylni o‘chirish (joy tozalanadi)
+        # faylni o‘chirish
         if os.path.exists(filename):
             os.remove(filename)
 
     except Exception as e:
-        if "Timed out" in str(e):
-            pass
-        else:
-            await update.message.reply_text(f"❌ Xato: {e}")
+        await update.message.reply_text(f"❌ Xato: {e}")
 
 # botni ishga tushirish
 def main():
