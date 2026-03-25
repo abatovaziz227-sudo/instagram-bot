@@ -1,20 +1,17 @@
 import os
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 import yt_dlp
 
 BOT_TOKEN = os.getenv("8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Bot ishlayapti ✅ Link yubor!")
-
-async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
 
     await update.message.reply_text("⏳ Yuklanmoqda...")
 
     ydl_opts = {
-        'format': 'best[filesize<50M]',  # 50MB dan kichik video
+        'format': 'best',
         'outtmpl': 'video.%(ext)s',
     }
 
@@ -23,17 +20,17 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
 
-        with open(filename, 'rb') as video:
-            await update.message.reply_video(video)
+        await update.message.reply_video(video=open(filename, 'rb'))
 
         os.remove(filename)
 
     except Exception as e:
-        await update.message.reply_text("❌ Xatolik yoki video juda katta!")
+        await update.message.reply_text(f"❌ Xatolik: {e}")
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("download", download))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
 
-app.run_polling()
+print("✅ Bot ishga tushdi...")
+
+app.run_polling()run_polling()
