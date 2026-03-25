@@ -59,3 +59,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+users = set()
+
+async def start(update, context):
+    users.add(update.message.from_user.id)
+    await update.message.reply_text("Salom!")
+    print("Userlar soni:", len(users))
