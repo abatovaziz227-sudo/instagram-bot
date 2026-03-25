@@ -1,35 +1,61 @@
+import logging
+import yt_dlp
 import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-import yt_dlp
 
-BOT_TOKEN = os.getenv("8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c")
+# logging
+logging.basicConfig(level=logging.INFO)
 
+# TOKEN (BU YERGA O'Z TOKENINGNI QO'Y)
+TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
+
+# /start komandasi
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Salom! YouTube link yubor 🎬")
+    await update.message.reply_text("📥 Instagram video link yubor!")
 
-async def download_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# video yuklash funksiyasi
+async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
 
-    try:
-        await update.message.reply_text("Yuklanmoqda... ⏳")
+    msg = await update.message.reply_text("⏳ Yuklanmoqda...")
 
+    try:
         ydl_opts = {
-            'format': 'best',
-            'outtmpl': 'video.%(ext)s'
+            'outtmpl': 'video.%(ext)s',
+            'format': 'mp4',
+            'quiet': True
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
 
-        await update.message.reply_video(video=open('video.mp4', 'rb'))
+        # video yuborish
+        with open(filename, 'rb') as video:
+            await update.message.reply_video(video)
+
+        await msg.delete()
+
+        # faylni o‘chirish (joy tozalanadi)
+        if os.path.exists(filename):
+            os.remove(filename)
 
     except Exception as e:
-        await update.message.reply_text(f"Xato: {e}")
+        if "Timed out" in str(e):
+            pass
+        else:
+            await update.message.reply_text(f"❌ Xato: {e}")
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+# botni ishga tushirish
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
 
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download_video))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download))
 
-app.run_polling()
+    print("✅ Bot ishlayapti...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
