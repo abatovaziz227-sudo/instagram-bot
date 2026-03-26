@@ -1,6 +1,7 @@
 import logging
-import yt_dlp
 import os
+import re
+import instaloader
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -8,72 +9,62 @@ logging.basicConfig(level=logging.INFO)
 
 TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
 
+# papka yaratish
+if not os.path.exists("downloads"):
+    os.mkdir("downloads")
+
+L = instaloader.Instaloader(dirname_pattern="downloads")
+
+# 🔥 LINKDAN SHORTCODE AJRATADI
+def get_shortcode(url):
+    match = re.search(r"/p/([^/?]+)", url)
+    if match:
+        return match.group(1)
+
+    match = re.search(r"/reel/([^/?]+)", url)
+    if match:
+        return match.group(1)
+
+    return None
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📥 Instagram link yubor!")
 
+
 async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
-    msg = await update.message.reply_text("⏳ Yuklanmoqda...")
+
+    shortcode = get_shortcode(url)
+
+    if not shortcode:
+        await update.message.reply_text("❌ Noto‘g‘ri link!")
+        return
+
+    await update.message.reply_text("⏳ Yuklanmoqda...")
 
     try:
-        ydl_opts = {
-            'outtmpl': 'media.%(ext)s',
-            'quiet': True,
-            'cookiefile': 'cookies.txt',
-            'format': 'bestvideo+bestaudio/best',
-            'merge_output_format': 'mp4'
-        }
+        post = instaloader.Post.from_shortcode(L.context, shortcode)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        # 🔥 yuklab olish
+        L.download_post(post, target="downloads")
 
-        # 🔥 AGAR POSTDA KO‘P MEDIA BO‘LSA (carousel)
-        if 'entries' in info:
-            for entry in info['entries']:
-                await send_media(entry, update)
-        else:
-            await send_media(info, update)
+        # 🔥 yuborish
+        for file in os.listdir("downloads"):
+            path = os.path.join("downloads", file)
 
-        await msg.delete()
+            if file.endswith(".mp4"):
+                with open(path, "rb") as f:
+                    await update.message.reply_video(f)
+
+            elif file.endswith(".jpg"):
+                with open(path, "rb") as f:
+                    await update.message.reply_photo(f)
+
+            os.remove(path)
 
     except Exception as e:
         await update.message.reply_text(f"❌ Xato: {e}")
-
-
-# 🔥 MEDIA YUBORISH FUNKSIYASI
-async def send_media(info, update):
-    try:
-        ydl_opts = {
-            'outtmpl': 'media.%(ext)s',
-            'quiet': True,
-            'cookiefile': 'cookies.txt',
-            'format': 'bestvideo+bestaudio/best',
-            'merge_output_format': 'mp4'
-        }
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            result = ydl.extract_info(info['webpage_url'], download=True)
-            filename = ydl.prepare_filename(result)
-
-        # 🔥 AGAR VIDEO BO‘LSA
-        if filename.endswith(".mp4"):
-            with open(filename, 'rb') as f:
-                await update.message.reply_video(f)
-
-        # 🔥 AGAR RASM BO‘LSA
-        elif filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".png"):
-            with open(filename, 'rb') as f:
-                await update.message.reply_photo(f)
-
-        # 🔥 ba’zi hollarda rasm URL orqali keladi
-        elif 'thumbnail' in result:
-            await update.message.reply_photo(result['thumbnail'])
-
-        if os.path.exists(filename):
-            os.remove(filename)
-
-    except Exception as e:
-        await update.message.reply_text(f"❌ Media xato: {e}")
 
 
 def main():
@@ -84,6 +75,7 @@ def main():
 
     print("✅ Bot ishlayapti...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
