@@ -9,52 +9,54 @@ logging.basicConfig(level=logging.INFO)
 TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📥 Instagram link yubor!")
+    await update.message.reply_text("📥 Instagram link yubor (video yoki rasm)")
 
 async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
+
     msg = await update.message.reply_text("⏳ Yuklanmoqda...")
 
     try:
         ydl_opts = {
             'outtmpl': 'media.%(ext)s',
-            'format': 'best',
             'quiet': True,
-            'cookiefile': 'cookies.txt',  # 🔥 MUHIM
+            'cookiefile': 'cookies.txt',   # 🔥 MUHIM
+            'format': 'best',
             'noplaylist': True
         }
+
+        files = []
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
-            # Agar post ichida bir nechta media bo‘lsa
+            # Agar carousel (bir nechta rasm/video) bo‘lsa
             if 'entries' in info:
                 for entry in info['entries']:
                     filename = ydl.prepare_filename(entry)
-                    await send_file(update, filename)
+                    files.append(filename)
             else:
                 filename = ydl.prepare_filename(info)
-                await send_file(update, filename)
+                files.append(filename)
+
+        # 🔥 YUBORISH
+        for file in files:
+            if file.endswith(".mp4"):
+                with open(file, 'rb') as f:
+                    await update.message.reply_video(f)
+            else:
+                with open(file, 'rb') as f:
+                    await update.message.reply_photo(f)
 
         await msg.delete()
 
+        # 🔥 TOZALASH
+        for file in files:
+            if os.path.exists(file):
+                os.remove(file)
+
     except Exception as e:
         await update.message.reply_text(f"❌ Xato: {e}")
-
-async def send_file(update, filename):
-    try:
-        if filename.endswith(('.jpg', '.jpeg', '.png')):
-            with open(filename, 'rb') as photo:
-                await update.message.reply_photo(photo)
-        else:
-            with open(filename, 'rb') as video:
-                await update.message.reply_video(video)
-
-        if os.path.exists(filename):
-            os.remove(filename)
-
-    except Exception as e:
-        await update.message.reply_text(f"❌ Yuborishda xato: {e}")
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
