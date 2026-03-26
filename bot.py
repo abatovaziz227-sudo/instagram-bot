@@ -9,51 +9,48 @@ logging.basicConfig(level=logging.INFO)
 TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📥 Instagram link yubor (video yoki rasm)")
+    await update.message.reply_text("📥 Instagram link yubor!")
 
 async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
-
     msg = await update.message.reply_text("⏳ Yuklanmoqda...")
 
     try:
         ydl_opts = {
             'outtmpl': 'media.%(ext)s',
             'quiet': True,
-            'cookiefile': 'cookies.txt',   # 🔥 MUHIM
-            'format': 'best',
-            'noplaylist': True
-        }
 
-        files = []
+            # 🔥 cookies qo‘shildi
+            'cookiefile': 'cookies.txt',
+
+            # 🔥 VIDEO + AUDIO birlashtirish
+            'format': 'bestvideo+bestaudio/best',
+
+            # 🔥 audio/video merge qilish
+            'merge_output_format': 'mp4'
+        }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
-            # Agar carousel (bir nechta rasm/video) bo‘lsa
+            # carousel (bir nechta media) bo‘lsa
             if 'entries' in info:
-                for entry in info['entries']:
-                    filename = ydl.prepare_filename(entry)
-                    files.append(filename)
-            else:
-                filename = ydl.prepare_filename(info)
-                files.append(filename)
+                info = info['entries'][0]
 
-        # 🔥 YUBORISH
-        for file in files:
-            if file.endswith(".mp4"):
-                with open(file, 'rb') as f:
-                    await update.message.reply_video(f)
-            else:
-                with open(file, 'rb') as f:
-                    await update.message.reply_photo(f)
+            filename = ydl.prepare_filename(info)
+
+        # 🔥 VIDEO yoki RASM aniqlash
+        if filename.endswith(".mp4"):
+            with open(filename, 'rb') as f:
+                await update.message.reply_video(f)
+        else:
+            with open(filename, 'rb') as f:
+                await update.message.reply_photo(f)
 
         await msg.delete()
 
-        # 🔥 TOZALASH
-        for file in files:
-            if os.path.exists(file):
-                os.remove(file)
+        if os.path.exists(filename):
+            os.remove(filename)
 
     except Exception as e:
         await update.message.reply_text(f"❌ Xato: {e}")
