@@ -19,41 +19,62 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ydl_opts = {
             'outtmpl': 'media.%(ext)s',
             'quiet': True,
-
-            # 🔥 cookies qo‘shildi
             'cookiefile': 'cookies.txt',
-
-            # 🔥 VIDEO + AUDIO birlashtirish
             'format': 'bestvideo+bestaudio/best',
-
-            # 🔥 audio/video merge qilish
             'merge_output_format': 'mp4'
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            info = ydl.extract_info(url, download=False)
 
-            # carousel (bir nechta media) bo‘lsa
-            if 'entries' in info:
-                info = info['entries'][0]
+        # 🔥 AGAR POSTDA KO‘P MEDIA BO‘LSA (carousel)
+        if 'entries' in info:
+            for entry in info['entries']:
+                await send_media(entry, update)
+        else:
+            await send_media(info, update)
 
-            filename = ydl.prepare_filename(info)
+        await msg.delete()
 
-        # 🔥 VIDEO yoki RASM aniqlash
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xato: {e}")
+
+
+# 🔥 MEDIA YUBORISH FUNKSIYASI
+async def send_media(info, update):
+    try:
+        ydl_opts = {
+            'outtmpl': 'media.%(ext)s',
+            'quiet': True,
+            'cookiefile': 'cookies.txt',
+            'format': 'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4'
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            result = ydl.extract_info(info['webpage_url'], download=True)
+            filename = ydl.prepare_filename(result)
+
+        # 🔥 AGAR VIDEO BO‘LSA
         if filename.endswith(".mp4"):
             with open(filename, 'rb') as f:
                 await update.message.reply_video(f)
-        else:
+
+        # 🔥 AGAR RASM BO‘LSA
+        elif filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".png"):
             with open(filename, 'rb') as f:
                 await update.message.reply_photo(f)
 
-        await msg.delete()
+        # 🔥 ba’zi hollarda rasm URL orqali keladi
+        elif 'thumbnail' in result:
+            await update.message.reply_photo(result['thumbnail'])
 
         if os.path.exists(filename):
             os.remove(filename)
 
     except Exception as e:
-        await update.message.reply_text(f"❌ Xato: {e}")
+        await update.message.reply_text(f"❌ Media xato: {e}")
+
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
