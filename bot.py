@@ -9,7 +9,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
-ADMIN_ID = 1957915860  # o'zingning telegram id
+ADMIN_ID = 957915860  # o'zingning telegram id
 
 # userlar
 users = set()
