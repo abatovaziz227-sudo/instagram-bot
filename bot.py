@@ -1,57 +1,84 @@
 import logging
-import yt_dlp
-import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import re
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import Message
+from aiogram.utils import executor
+import instaloader
+
+API_TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
 
 logging.basicConfig(level=logging.INFO)
 
-TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher(bot)
 
-# linkni tozalash
-def clean_url(url):
-    return url.split("?")[0]
+L = instaloader.Instaloader()
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📥 Instagram video link yubor!")
+# AGAR HOHLASANGIZ LOGIN QILING (tavsiya qilinadi)
+# L.login("username", "password")
 
-async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = clean_url(update.message.text)
+@dp.message_handler(commands=['start'])
+async def start(message: Message):
+    await message.reply(
+        "Salom!\n\n"
+        "📥 Instagram yuklovchi bot\n\n"
+        "1. Username yuboring → Story yuklayman\n"
+        "2. Instagram link yuboring → Video yuklayman"
+    )
 
-    msg = await update.message.reply_text("⏳ Yuklanmoqda...")
+# LINK ORQALI VIDEO YUKLASH
+@dp.message_handler(lambda message: "instagram.com" in message.text)
+async def download_video(message: Message):
+    url = message.text.strip()
+
+    await message.reply("⏳ Video yuklanmoqda...")
 
     try:
-        ydl_opts = {
-            'outtmpl': 'video.%(ext)s',
-            'format': 'best',
-            'cookiefile': 'cookies.txt',  # MUHIM
-            'quiet': True
-        }
+        shortcode = re.search(r"/(reel|p|tv)/([^/]+)/", url).group(2)
+        post = instaloader.Post.from_shortcode(L.context, shortcode)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.extract_info(url, download=True)
+        L.download_post(post, target="video")
 
-        # video topish
-        for file in os.listdir():
-            if file.endswith(".mp4"):
-                with open(file, "rb") as video:
-                    await update.message.reply_video(video)
+        for file in post.get_sidecar_nodes() if post.typename == "GraphSidecar" else [post]:
+            if file.is_video:
+                video_path = f"video/{post.shortcode}.mp4"
+                await message.reply_video(open(video_path, "rb"))
 
-                os.remove(file)
-
-        await msg.delete()
+        await message.reply("✅ Video tayyor!")
 
     except Exception as e:
-        await update.message.reply_text(f"❌ Xato: {e}")
+        await message.reply(f"❌ Xatolik: {e}")
 
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+# USERNAME ORQALI STORY YUKLASH
+@dp.message_handler()
+async def download_story(message: Message):
+    username = message.text.strip()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, download))
+    await message.reply("⏳ Story tekshirilmoqda...")
 
-    print("✅ Bot ishlayapti...")
-    app.run_polling()
+    try:
+        profile = instaloader.Profile.from_username(L.context, username)
 
-if __name__ == "__main__":
-    main()
+        found = False
+
+        for story in L.get_stories(userids=[profile.userid]):
+            for item in story.get_items():
+                found = True
+                L.download_storyitem(item, target=username)
+
+                if item.is_video:
+                    await message.reply_video(open(f"{username}/{item.date_utc}.mp4", "rb"))
+                else:
+                    await message.reply_photo(open(f"{username}/{item.date_utc}.jpg", "rb"))
+
+        if not found:
+            await message.reply("❌ Story topilmadi")
+
+        else:
+            await message.reply("✅ Storylar yuborildi")
+
+    except Exception as e:
+        await message.reply(f"❌ Xatolik: {e}")
+
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True)
