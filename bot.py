@@ -1,5 +1,6 @@
 import logging
-import requests
+import yt_dlp
+import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -7,40 +8,41 @@ logging.basicConfig(level=logging.INFO)
 
 TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
 
-# 🔥 API URL
-API = "https://api.akuari.my.id/downloader/ig?url="
-
+# linkni tozalash
+def clean_url(url):
+    return url.split("?")[0]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("📥 Instagram link yubor!")
-
+    await update.message.reply_text("📥 Instagram video link yubor!")
 
 async def download(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text
+    url = clean_url(update.message.text)
 
-    await update.message.reply_text("⏳ Yuklanmoqda...")
+    msg = await update.message.reply_text("⏳ Yuklanmoqda...")
 
     try:
-        res = requests.get(API + url).json()
+        ydl_opts = {
+            'outtmpl': 'video.%(ext)s',
+            'format': 'best',
+            'cookiefile': 'cookies.txt',  # MUHIM
+            'quiet': True
+        }
 
-        if not res["status"]:
-            await update.message.reply_text("❌ Topilmadi!")
-            return
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.extract_info(url, download=True)
 
-        data = res["result"]
+        # video topish
+        for file in os.listdir():
+            if file.endswith(".mp4"):
+                with open(file, "rb") as video:
+                    await update.message.reply_video(video)
 
-        # 🔥 VIDEO
-        if "video" in data:
-            await update.message.reply_video(data["video"])
+                os.remove(file)
 
-        # 🔥 RASM
-        if "image" in data:
-            for img in data["image"]:
-                await update.message.reply_photo(img)
+        await msg.delete()
 
     except Exception as e:
         await update.message.reply_text(f"❌ Xato: {e}")
-
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -50,7 +52,6 @@ def main():
 
     print("✅ Bot ishlayapti...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
