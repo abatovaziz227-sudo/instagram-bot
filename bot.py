@@ -2,6 +2,7 @@ import logging
 import re
 import os
 import asyncio
+import shutil
 from aiogram import Bot, Dispatcher
 from aiogram.types import Message, FSInputFile
 from aiogram.filters import Command
@@ -12,6 +13,9 @@ from moviepy import VideoFileClip
 # ENV
 load_dotenv()
 API_TOKEN = os.getenv("8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c")
+
+if not API_TOKEN:
+    raise ValueError("BOT_TOKEN topilmadi!")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,13 +28,13 @@ L = instaloader.Instaloader()
 @dp.message(Command("start"))
 async def start(message: Message):
     await message.answer(
-        "📥 Instagram bot\n\n"
-        "1. Link yubor → video/audio\n"
-        "2. Username yubor → story\n\n"
+        "🤖 Instagram bot\n\n"
+        "📥 Link yubor → video/audio\n"
+        "👤 Username yubor → story\n\n"
         "Misol:\n"
         "audio https://instagram.com/reel/...\n"
         "video https://instagram.com/reel/...\n"
-        "username"
+        "cristiano"
     )
 
 # ASOSIY HANDLER
@@ -38,18 +42,18 @@ async def start(message: Message):
 async def handler(message: Message):
     text = message.text.strip()
 
-    # 🎥🎵 LINK BO'LSA
     if "instagram.com" in text:
         await handle_link(message, text)
     else:
         await handle_story(message, text)
 
-# VIDEO / AUDIO
+# 🎥🎵 VIDEO / AUDIO
 async def handle_link(message: Message, text: str):
     await message.answer("⏳ Yuklanmoqda...")
 
     try:
         mode = "video"
+
         if text.startswith("audio"):
             mode = "audio"
             url = text.replace("audio", "").strip()
@@ -67,13 +71,18 @@ async def handle_link(message: Message, text: str):
         shortcode = match.group(2)
         post = instaloader.Post.from_shortcode(L.context, shortcode)
 
+        # temp tozalash
+        if os.path.exists("temp"):
+            shutil.rmtree("temp")
+
         os.makedirs("temp", exist_ok=True)
+
         L.download_post(post, target="temp")
 
         video_path = None
         for file in os.listdir("temp"):
             if file.endswith(".mp4"):
-                video_path = f"temp/{file}"
+                video_path = os.path.join("temp", file)
                 break
 
         if not video_path:
@@ -86,7 +95,7 @@ async def handle_link(message: Message, text: str):
 
             with VideoFileClip(video_path) as clip:
                 if clip.audio is None:
-                    await message.answer("❌ Audio topilmadi")
+                    await message.answer("❌ Audio yo‘q")
                     return
                 clip.audio.write_audiofile(audio_path)
 
@@ -105,9 +114,15 @@ async def handle_link(message: Message, text: str):
 
 # 📸 STORY
 async def handle_story(message: Message, username: str):
-    await message.answer("⏳ Story tekshirilmoqda...")
+    await message.answer("⏳ Story yuklanmoqda...")
 
     try:
+        # eski papkani o‘chiramiz
+        if os.path.exists(username):
+            shutil.rmtree(username)
+
+        os.makedirs(username, exist_ok=True)
+
         profile = instaloader.Profile.from_username(L.context, username)
 
         found = False
@@ -117,15 +132,20 @@ async def handle_story(message: Message, username: str):
                 found = True
                 L.download_storyitem(item, target=username)
 
-                if item.is_video:
-                    await message.answer_video(FSInputFile(f"{username}/{item.date_utc}.mp4"))
-                else:
-                    await message.answer_photo(FSInputFile(f"{username}/{item.date_utc}.jpg"))
-
         if not found:
             await message.answer("❌ Story topilmadi")
-        else:
-            await message.answer("✅ Storylar yuborildi")
+            return
+
+        # 🔥 REAL FAYLLARNI YUBORISH
+        for file in os.listdir(username):
+            path = os.path.join(username, file)
+
+            if file.endswith(".mp4"):
+                await message.answer_video(FSInputFile(path))
+            elif file.endswith(".jpg"):
+                await message.answer_photo(FSInputFile(path))
+
+        await message.answer("✅ Storylar yuborildi")
 
     except Exception as e:
         await message.answer(f"❌ Xatolik: {e}")
