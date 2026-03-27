@@ -6,16 +6,10 @@ import shutil
 from aiogram import Bot, Dispatcher
 from aiogram.types import Message, FSInputFile
 from aiogram.filters import Command
-from dotenv import load_dotenv
 import instaloader
-from moviepy import VideoFileClip
 
-# ENV
-load_dotenv()
-API_TOKEN = os.getenv("8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c")
-
-if not API_TOKEN:
-    raise ValueError("BOT_TOKEN topilmadi!")
+# 🔐 TOKENNI SHU YERGA YOZING
+API_TOKEN = "8793753588:AAHl8bYf6jLt8GiTlP3gBL_xTmIDRuUHU4c"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,11 +23,10 @@ L = instaloader.Instaloader()
 async def start(message: Message):
     await message.answer(
         "🤖 Instagram bot\n\n"
-        "📥 Link yubor → video/audio\n"
-        "👤 Username yubor → story\n\n"
+        "🎥 Video uchun link yuboring\n"
+        "📸 Story uchun username yuboring\n\n"
         "Misol:\n"
-        "audio https://instagram.com/reel/...\n"
-        "video https://instagram.com/reel/...\n"
+        "https://instagram.com/reel/...\n"
         "cristiano"
     )
 
@@ -43,26 +36,15 @@ async def handler(message: Message):
     text = message.text.strip()
 
     if "instagram.com" in text:
-        await handle_link(message, text)
+        await handle_video(message, text)
     else:
         await handle_story(message, text)
 
-# 🎥🎵 VIDEO / AUDIO
-async def handle_link(message: Message, text: str):
-    await message.answer("⏳ Yuklanmoqda...")
+# 🎥 VIDEO
+async def handle_video(message: Message, url: str):
+    await message.answer("⏳ Video yuklanmoqda...")
 
     try:
-        mode = "video"
-
-        if text.startswith("audio"):
-            mode = "audio"
-            url = text.replace("audio", "").strip()
-        elif text.startswith("video"):
-            mode = "video"
-            url = text.replace("video", "").strip()
-        else:
-            url = text
-
         match = re.search(r"/(reel|p|tv)/([^/]+)/", url)
         if not match:
             await message.answer("❌ Noto‘g‘ri link")
@@ -89,25 +71,10 @@ async def handle_link(message: Message, text: str):
             await message.answer("❌ Video topilmadi")
             return
 
-        # 🎵 AUDIO
-        if mode == "audio":
-            audio_path = video_path.replace(".mp4", ".mp3")
-
-            with VideoFileClip(video_path) as clip:
-                if clip.audio is None:
-                    await message.answer("❌ Audio yo‘q")
-                    return
-                clip.audio.write_audiofile(audio_path)
-
-            await message.answer_audio(FSInputFile(audio_path))
-            os.remove(audio_path)
-
-        # 🎥 VIDEO
-        else:
-            await message.answer_video(FSInputFile(video_path))
+        await message.answer_video(FSInputFile(video_path))
 
         os.remove(video_path)
-        await message.answer("✅ Tayyor!")
+        await message.answer("✅ Video yuborildi")
 
     except Exception as e:
         await message.answer(f"❌ Xatolik: {e}")
@@ -117,7 +84,7 @@ async def handle_story(message: Message, username: str):
     await message.answer("⏳ Story yuklanmoqda...")
 
     try:
-        # eski papkani o‘chiramiz
+        # eski papkani o‘chirish
         if os.path.exists(username):
             shutil.rmtree(username)
 
@@ -136,7 +103,6 @@ async def handle_story(message: Message, username: str):
             await message.answer("❌ Story topilmadi")
             return
 
-        # 🔥 REAL FAYLLARNI YUBORISH
         for file in os.listdir(username):
             path = os.path.join(username, file)
 
