@@ -1,4 +1,2 @@
 aiogram==3.7.0
 instaloader
-moviepy>=2.0.0
-python-dotenv
